@@ -1,5 +1,6 @@
 import React from "react";
 import WaferMap from "../wafermap";
+import waferData from "../data/wafermap-processed-data.json";
 
 const WaferList = (props) => {
   const { waferCount } = props;
@@ -8,7 +9,12 @@ const WaferList = (props) => {
     const wafers = [];
     for (let i = 0; i < count; i++) {
       wafers.push(
-        <WaferMap width={250} height={250} key={`wafer-map-key-${i}`} />
+        <WaferMap
+          data={waferData}
+          width={525}
+          height={525}
+          key={`wafer-map-key-${i}`}
+        />
       );
     }
 

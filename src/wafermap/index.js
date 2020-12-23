@@ -3,34 +3,65 @@ import { useStyles } from "./styles";
 import React, { useRef, useEffect } from "react";
 import ZoomInIcon from "@material-ui/icons/ZoomIn";
 import ZoomOutIcon from "@material-ui/icons/ZoomOut";
+import RestoreIcon from "@material-ui/icons/Restore";
 
 const WaferMap = (props) => {
   const rootRef = useRef(null);
   const classes = useStyles();
-  const { width, height } = props;
+  const { width, height, data } = props;
 
   let scale = 1;
   let app = null;
+  let graphics = null;
   let currentStagePos = null;
-  let scaleMultiplier = 0.25;
 
   const chipWidth = 0.5;
   const chipHeight = 0.5;
   const chipGap = 0.25;
   const chipCount = 300;
 
+  const sort = (array) => {
+    return array.sort((a, b) => {
+      return a - b;
+    });
+  };
+
   const draw = (scale) => {
-    const graphics = new PIXI.Graphics();
+    graphics = new PIXI.Graphics();
     graphics.interactive = true;
 
-    for (let y = 0; y < chipCount; y++) {
-      for (let x = 0; x < chipCount; x++) {
-        const dx = x * chipWidth + x * chipGap;
-        const dy = y * chipHeight + y * chipGap;
-        graphics.beginFill(0xde3249);
-        graphics.drawRect(dx, dy, chipWidth, chipHeight);
-        graphics.endFill();
-      }
+    if (data) {
+      // find max x and y indexe
+      const xIndexData = sort(data.map((i) => i.xIndex));
+      const yIndexData = sort(data.map((i) => i.yIndex));
+      const xMaxIndex = xIndexData[xIndexData.length - 1];
+      const yMaxIndex = yIndexData[yIndexData.length - 1];
+
+      const waferData = Array.from(Array(xMaxIndex + 1).fill(0), () =>
+        new Array(yMaxIndex + 1).fill(0)
+      );
+
+      // map wafer map into multi dimention array
+      data.map((item) => {
+        waferData[item.xIndex][item.yIndex] = item;
+      });
+
+      console.log(`Total chip count ${data.length}`);
+
+      waferData.forEach((row) => {
+        if (row) {
+          row.forEach((chip) => {
+            // empty chip will have a value of 0
+            if (chip) {
+              const dx = chip.xIndex * chipWidth + chip.xIndex * chipGap;
+              const dy = chip.yIndex * chipHeight + chip.yIndex * chipGap;
+              graphics.beginFill(chip.color);
+              graphics.drawRect(dx, dy, chipWidth, chipHeight);
+              graphics.endFill();
+            }
+          });
+        }
+      });
     }
 
     graphics.x = width / 2 - graphics.width / 2;
@@ -39,18 +70,6 @@ const WaferMap = (props) => {
     app.stage.scale.x = scale;
     app.stage.scale.y = scale;
   };
-
-  /*const app = useMemo(
-    () =>
-      new PIXI.Application({
-        width: width,
-        height: height,
-        antialias: true,
-        transparent: true,
-        resolution: window.devicePixelRatio || 1,
-      }),
-    [width, height]
-  );*/
 
   useEffect(() => {
     app = new PIXI.Application({
@@ -69,13 +88,20 @@ const WaferMap = (props) => {
   }, []);
 
   const onMinusClick = (e) => {
-    scale *= scaleMultiplier;
-    draw(scale);
+    zoom(1, e.nativeEvent.offsetX, e.nativeEvent.offsetX);
   };
 
   const onPlusClick = (e) => {
-    scale /= scaleMultiplier;
-    draw(scale);
+    zoom(-1, e.nativeEvent.offsetX, e.nativeEvent.offsetX);
+  };
+
+  const onResetClick = (e) => {
+    const stage = app.stage;
+    stage.x = width / 2 - graphics.width / 2;
+    stage.y = height / 2 - graphics.height / 2;
+    stage.scale.x = scale;
+    stage.scale.y = scale;
+    console.log("reset");
   };
 
   const onMouseDown = (e) => {
@@ -126,13 +152,18 @@ const WaferMap = (props) => {
     <div className={classes.waferRoot} style={{ width: width, height: height }}>
       <div className={classes.controlHolder}>
         <div>
-          <button onClick={onMinusClick}>
+          <button onClick={onMinusClick} title="Zoom out">
             <ZoomOutIcon fontSize="small" />
           </button>
         </div>
         <div>
-          <button onClick={onPlusClick}>
+          <button onClick={onPlusClick} title="Zoom in">
             <ZoomInIcon fontSize="small" />
+          </button>
+        </div>
+        <div>
+          <button onClick={onResetClick} title="Reset to default">
+            <RestoreIcon fontSize="small" />
           </button>
         </div>
       </div>

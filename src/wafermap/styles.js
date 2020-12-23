@@ -2,15 +2,18 @@ import { makeStyles } from "@material-ui/core/styles";
 
 export const useStyles = makeStyles({
   waferRoot: {
-    margin: "10px",
+    margin: "1%",
     border: "1px solid grey",
+    position: "relative",
   },
   controlHolder: {
-    textAlign: "right",
+    display: "flex",
+    flexDirection: "column",
     position: "absolute",
     margin: ".5rem",
-    "& *": {
-      margin: "3px",
+    right: "1%",
+    "& div": {
+      paddingBottom: "3px",
     },
   },
   canvasRoot: {

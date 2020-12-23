@@ -3,7 +3,7 @@ import WaferList from "./waferlist";
 function App() {
   return (
     <div className="App">
-      <WaferList waferCount={1} />
+      <WaferList waferCount={2} />
     </div>
   );
 }
