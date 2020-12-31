@@ -18,7 +18,6 @@ const WaferMap = (props) => {
   let app = null;
   let currentStagePos = null;
   let initialRectPos = null;
-  let chipGraphics = new PIXI.Graphics();
   let rectGraphics = new PIXI.Graphics();
 
   const chipWidth = 0.5;
@@ -32,6 +31,7 @@ const WaferMap = (props) => {
   };
 
   const drawChipMap = (scale) => {
+    const chipGraphics = new PIXI.Graphics();
     chipGraphics.interactive = true;
 
     if (data) {
@@ -41,24 +41,25 @@ const WaferMap = (props) => {
       const xMaxIndex = xIndexData[xIndexData.length - 1];
       const yMaxIndex = yIndexData[yIndexData.length - 1];
 
-      const waferData = Array.from(Array(xMaxIndex + 1).fill(0), () =>
+      const chipMatrix = Array.from(Array(xMaxIndex + 1).fill(0), () =>
         new Array(yMaxIndex + 1).fill(0)
       );
 
-      // map wafer map into multi dimention array
+      // map chip map into multi dimention array
       data.map((item) => {
-        waferData[item.xIndex][item.yIndex] = item;
+        chipMatrix[item.xIndex][item.yIndex] = item;
       });
 
-      waferData.forEach((row) => {
+      // draw chips using matrix
+      chipMatrix.forEach((row) => {
         if (row) {
           row.forEach((chip) => {
             // empty chip will have a value of 0
             if (chip) {
-              const dx = chip.xIndex * chipWidth + chip.xIndex * chipGap;
-              const dy = chip.yIndex * chipHeight + chip.yIndex * chipGap;
+              const x = chip.xIndex * chipWidth + chip.xIndex * chipGap;
+              const y = chip.yIndex * chipHeight + chip.yIndex * chipGap;
               chipGraphics.beginFill(chip.color);
-              chipGraphics.drawRect(dx, dy, chipWidth, chipHeight);
+              chipGraphics.drawRect(x, y, chipWidth, chipHeight);
               chipGraphics.endFill();
             }
           });

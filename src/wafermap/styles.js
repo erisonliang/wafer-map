@@ -28,5 +28,6 @@ export const useStyles = makeStyles({
     right: "1%",
     backgroundColor: "white",
     padding: "3px",
+    pointerEvents: "none",
   },
 });
