@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { useStyles } from "./styles";
+import { formatNumber } from "../helpers/util";
 import React, { useRef, useEffect } from "react";
 import ZoomInIcon from "@material-ui/icons/ZoomIn";
 import ZoomOutIcon from "@material-ui/icons/ZoomOut";
@@ -10,17 +11,19 @@ const WaferMap = (props) => {
   const classes = useStyles();
   const { width, height, data } = props;
 
+  const MAX_SCALE_LIMIT = 64;
+  const MIN_SCALE_LIMIT = 0.25;
   let scale = { x: 1, y: 1 };
+
   let app = null;
-  let graphics = null;
   let currentStagePos = null;
   let initialRectPos = null;
+  let chipGraphics = new PIXI.Graphics();
   let rectGraphics = new PIXI.Graphics();
 
   const chipWidth = 0.5;
   const chipHeight = 0.5;
   const chipGap = 0.25;
-  const chipCount = 300;
 
   const sort = (array) => {
     return array.sort((a, b) => {
@@ -28,9 +31,8 @@ const WaferMap = (props) => {
     });
   };
 
-  const draw = (scale) => {
-    graphics = new PIXI.Graphics();
-    graphics.interactive = true;
+  const drawChipMap = (scale) => {
+    chipGraphics.interactive = true;
 
     if (data) {
       // find max x and y indexe
@@ -48,8 +50,6 @@ const WaferMap = (props) => {
         waferData[item.xIndex][item.yIndex] = item;
       });
 
-      console.log(`Total chip count ${data.length}`);
-
       waferData.forEach((row) => {
         if (row) {
           row.forEach((chip) => {
@@ -57,20 +57,20 @@ const WaferMap = (props) => {
             if (chip) {
               const dx = chip.xIndex * chipWidth + chip.xIndex * chipGap;
               const dy = chip.yIndex * chipHeight + chip.yIndex * chipGap;
-              graphics.beginFill(chip.color);
-              graphics.drawRect(dx, dy, chipWidth, chipHeight);
-              graphics.endFill();
+              chipGraphics.beginFill(chip.color);
+              chipGraphics.drawRect(dx, dy, chipWidth, chipHeight);
+              chipGraphics.endFill();
             }
           });
         }
       });
     }
 
-    graphics.x = width / 2 - graphics.width / 2;
-    graphics.y = height / 2 - graphics.height / 2;
+    chipGraphics.x = width / 2 - chipGraphics.width / 2;
+    chipGraphics.y = height / 2 - chipGraphics.height / 2;
     app.stage.scale.x = scale.x;
     app.stage.scale.y = scale.y;
-    app.stage.addChild(graphics);
+    app.stage.addChild(chipGraphics);
   };
 
   useEffect(() => {
@@ -85,11 +85,10 @@ const WaferMap = (props) => {
     app.renderer.plugins.interaction
       .on("mousedown", onRendererMouseDown)
       .on("mouseup", onRendererMouseUp)
-      .on("mousemove", onRendererMouseMove)
-      .on("mouseupoutside", onRendererMouseOutsideUp);
+      .on("mousemove", onRendererMouseMove);
 
     rootRef.current.appendChild(app.view);
-    draw(scale);
+    drawChipMap(scale);
 
     return () => {
       app.destroy(app.view);
@@ -102,10 +101,13 @@ const WaferMap = (props) => {
       const stageY = app.stage.y;
       const pos = e.data.global;
       const { x, y } = initialRectPos;
+
+      // calculate rect dimension based on zoom level and stage position
       const dx = (x - stageX) / scale.x;
       const dy = (y - stageY) / scale.y;
       const width = (pos.x - x) / scale.x;
       const height = (pos.y - y) / scale.y;
+
       drawRect(dx, dy, width, height);
     }
   };
@@ -116,16 +118,9 @@ const WaferMap = (props) => {
       x: pos.x,
       y: pos.y,
     };
-    console.log(pos.x, pos.y);
-    console.log("Stage xy", app.stage.x, app.stage.y);
-    console.log("scale", scale);
   };
 
   const onRendererMouseUp = (e) => {
-    initialRectPos = null;
-  };
-
-  const onRendererMouseOutsideUp = (e) => {
     initialRectPos = null;
   };
 
@@ -152,15 +147,6 @@ const WaferMap = (props) => {
     rectGraphics.drawRect(x, y, width, height);
     rectGraphics.endFill();
     app.stage.addChild(rectGraphics);
-  };
-
-  const onMouseDown = (e) => {
-    initialRectPos = {
-      x: e.nativeEvent.offsetX,
-      y: e.nativeEvent.offsetY,
-    };
-    console.log("Client XY", e.nativeEvent.clientX, e.nativeEvent.clientY);
-    console.log("Offset XY", e.nativeEvent.offsetX, e.nativeEvent.offsetY);
   };
 
   // const onMouseDown = (e) => {
@@ -201,6 +187,14 @@ const WaferMap = (props) => {
   //   }
   // };
 
+  const doPerformZoom = (scale) => {
+    // check if max and min scale limit has reached
+    const isWithInMaxRange = scale.x + scale.y / 2 <= MAX_SCALE_LIMIT;
+    const isWithInMinRange = scale.x + scale.y / 2 >= MIN_SCALE_LIMIT;
+
+    return isWithInMaxRange && isWithInMinRange;
+  };
+
   const zoom = (delta, x, y) => {
     const stage = app.stage;
     const scaleOffset = delta > 0 ? 0.5 : 2;
@@ -218,11 +212,14 @@ const WaferMap = (props) => {
       y: stagePos.y * newScale.y + stage.y,
     };
 
-    stage.x -= newScreenPos.x - x;
-    stage.y -= newScreenPos.y - y;
-    stage.scale.x = newScale.x;
-    stage.scale.y = newScale.y;
-    scale = newScale;
+    // check if we can do a zoom
+    if (doPerformZoom(newScale)) {
+      stage.x -= newScreenPos.x - x;
+      stage.y -= newScreenPos.y - y;
+      stage.scale.x = newScale.x;
+      stage.scale.y = newScale.y;
+      scale = newScale;
+    }
   };
 
   const onWheel = (e) => {
@@ -255,7 +252,11 @@ const WaferMap = (props) => {
         /*onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
         onMouseMove={onMouseMove}*/
-      />
+      >
+        <span className={classes.waferNotes}>
+          Total chip count: {formatNumber(data.length)}
+        </span>
+      </div>
     </div>
   );
 };

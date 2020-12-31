@@ -22,4 +22,11 @@ export const useStyles = makeStyles({
   canvasRootDraw: {
     cursor: "crosshair",
   },
+  waferNotes: {
+    position: "absolute",
+    top: "95%",
+    right: "1%",
+    backgroundColor: "white",
+    padding: "3px",
+  },
 });
