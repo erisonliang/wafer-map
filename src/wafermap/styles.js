@@ -19,4 +19,7 @@ export const useStyles = makeStyles({
   canvasRoot: {
     cursor: "grab",
   },
+  canvasRootDraw: {
+    cursor: "crosshair",
+  },
 });

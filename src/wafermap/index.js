@@ -10,10 +10,12 @@ const WaferMap = (props) => {
   const classes = useStyles();
   const { width, height, data } = props;
 
-  let scale = 1;
+  let scale = { x: 1, y: 1 };
   let app = null;
   let graphics = null;
   let currentStagePos = null;
+  let initialRectPos = null;
+  let rectGraphics = new PIXI.Graphics();
 
   const chipWidth = 0.5;
   const chipHeight = 0.5;
@@ -66,9 +68,9 @@ const WaferMap = (props) => {
 
     graphics.x = width / 2 - graphics.width / 2;
     graphics.y = height / 2 - graphics.height / 2;
+    app.stage.scale.x = scale.x;
+    app.stage.scale.y = scale.y;
     app.stage.addChild(graphics);
-    app.stage.scale.x = scale;
-    app.stage.scale.y = scale;
   };
 
   useEffect(() => {
@@ -79,6 +81,13 @@ const WaferMap = (props) => {
       transparent: true,
       resolution: window.devicePixelRatio || 1,
     });
+
+    app.renderer.plugins.interaction
+      .on("mousedown", onRendererMouseDown)
+      .on("mouseup", onRendererMouseUp)
+      .on("mousemove", onRendererMouseMove)
+      .on("mouseupoutside", onRendererMouseOutsideUp);
+
     rootRef.current.appendChild(app.view);
     draw(scale);
 
@@ -86,6 +95,39 @@ const WaferMap = (props) => {
       app.destroy(app.view);
     };
   }, []);
+
+  const onRendererMouseMove = (e) => {
+    if (initialRectPos) {
+      const stageX = app.stage.x;
+      const stageY = app.stage.y;
+      const pos = e.data.global;
+      const { x, y } = initialRectPos;
+      const dx = (x - stageX) / scale.x;
+      const dy = (y - stageY) / scale.y;
+      const width = (pos.x - x) / scale.x;
+      const height = (pos.y - y) / scale.y;
+      drawRect(dx, dy, width, height);
+    }
+  };
+
+  const onRendererMouseDown = (e) => {
+    const pos = e.data.global;
+    initialRectPos = {
+      x: pos.x,
+      y: pos.y,
+    };
+    console.log(pos.x, pos.y);
+    console.log("Stage xy", app.stage.x, app.stage.y);
+    console.log("scale", scale);
+  };
+
+  const onRendererMouseUp = (e) => {
+    initialRectPos = null;
+  };
+
+  const onRendererMouseOutsideUp = (e) => {
+    initialRectPos = null;
+  };
 
   const onMinusClick = (e) => {
     zoom(1, e.nativeEvent.offsetX, e.nativeEvent.offsetX);
@@ -97,29 +139,67 @@ const WaferMap = (props) => {
 
   const onResetClick = (e) => {
     const stage = app.stage;
-    stage.x = width / 2 - graphics.width / 2;
-    stage.y = height / 2 - graphics.height / 2;
-    stage.scale.x = scale;
-    stage.scale.y = scale;
-    console.log("reset");
+    scale = { x: 1, y: 1 };
+    stage.x = 0;
+    stage.y = 0;
+    stage.scale.x = scale.x;
+    stage.scale.y = scale.y;
+  };
+
+  const drawRect = (x, y, width, height) => {
+    rectGraphics.clear();
+    rectGraphics.lineStyle(1, 0xff0000);
+    rectGraphics.drawRect(x, y, width, height);
+    rectGraphics.endFill();
+    app.stage.addChild(rectGraphics);
   };
 
   const onMouseDown = (e) => {
-    currentStagePos = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+    initialRectPos = {
+      x: e.nativeEvent.offsetX,
+      y: e.nativeEvent.offsetY,
+    };
+    console.log("Client XY", e.nativeEvent.clientX, e.nativeEvent.clientY);
+    console.log("Offset XY", e.nativeEvent.offsetX, e.nativeEvent.offsetY);
   };
 
-  const onMouseUp = (e) => {
-    currentStagePos = null;
-  };
+  // const onMouseDown = (e) => {
+  //   initialRectPos = {
+  //     x: e.nativeEvent.offsetX,
+  //     y: e.nativeEvent.offsetY,
+  //   };
+  //   console.log("Client XY", e.nativeEvent.clientX, e.nativeEvent.clientY);
+  //   console.log("Offset XY", e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+  // };
 
-  const onMouseMove = (e) => {
-    if (currentStagePos) {
-      const element = e.nativeEvent;
-      app.stage.x += element.offsetX - currentStagePos.x;
-      app.stage.y += element.offsetY - currentStagePos.y;
-      currentStagePos = { x: element.offsetX, y: element.offsetY };
-    }
-  };
+  // const onMouseUp = (e) => {
+  //   initialRectPos = null;
+  // };
+
+  // const onMouseMove = (e) => {
+  //   if (initialRectPos) {
+  //     const { x, y } = initialRectPos;
+  //     const pos = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+  //     drawRect(x, y, pos.x - x, pos.y - y);
+  //   }
+  // };
+
+  // const onMouseDown = (e) => {
+  //   currentStagePos = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+  // };
+
+  // const onMouseUp = (e) => {
+  //   currentStagePos = null;
+  // };
+
+  // const onMouseMove = (e) => {
+  //   if (currentStagePos) {
+  //     const element = e.nativeEvent;
+  //     app.stage.x += element.offsetX - currentStagePos.x;
+  //     app.stage.y += element.offsetY - currentStagePos.y;
+  //     currentStagePos = { x: element.offsetX, y: element.offsetY };
+  //   }
+  // };
 
   const zoom = (delta, x, y) => {
     const stage = app.stage;
@@ -142,6 +222,7 @@ const WaferMap = (props) => {
     stage.y -= newScreenPos.y - y;
     stage.scale.x = newScale.x;
     stage.scale.y = newScale.y;
+    scale = newScale;
   };
 
   const onWheel = (e) => {
@@ -169,11 +250,11 @@ const WaferMap = (props) => {
       </div>
       <div
         ref={rootRef}
-        className={classes.canvasRoot}
+        className={classes.canvasRootDraw}
         onWheel={onWheel}
-        onMouseDown={onMouseDown}
+        /*onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
-        onMouseMove={onMouseMove}
+        onMouseMove={onMouseMove}*/
       />
     </div>
   );
