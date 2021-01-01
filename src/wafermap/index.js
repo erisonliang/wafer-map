@@ -18,6 +18,7 @@ const WaferMap = (props) => {
   let app = null;
   let currentStagePos = null;
   let initialRectPos = null;
+  let chipMatrix;
   let rectGraphics = new PIXI.Graphics();
 
   const chipWidth = 0.5;
@@ -41,7 +42,7 @@ const WaferMap = (props) => {
       const xMaxIndex = xIndexData[xIndexData.length - 1];
       const yMaxIndex = yIndexData[yIndexData.length - 1];
 
-      const chipMatrix = Array.from(Array(xMaxIndex + 1).fill(0), () =>
+      chipMatrix = Array.from(Array(xMaxIndex + 1).fill(0), () =>
         new Array(yMaxIndex + 1).fill(0)
       );
 
@@ -58,7 +59,11 @@ const WaferMap = (props) => {
             if (chip) {
               const x = chip.xIndex * chipWidth + chip.xIndex * chipGap;
               const y = chip.yIndex * chipHeight + chip.yIndex * chipGap;
-              chipGraphics.beginFill(chip.color);
+              if (chip.xIndex === 200 && chip.yIndex === 200) {
+                chipGraphics.beginFill(0x000000);
+              } else {
+                chipGraphics.beginFill(chip.color);
+              }
               chipGraphics.drawRect(x, y, chipWidth, chipHeight);
               chipGraphics.endFill();
             }
@@ -121,7 +126,72 @@ const WaferMap = (props) => {
     };
   };
 
+  const distanceBetweenPoints = (x1, y1, x2, y2) => {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  };
+
+  const findAreaOfTriangle = (a, b, c) => {
+    // Heron's formula
+    const s = (a + b + c) / 2;
+    const area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
+    return area;
+  };
+
   const onRendererMouseUp = (e) => {
+    const stageX = app.stage.x;
+    const stageY = app.stage.y;
+    const pos = e.data.global;
+
+    let { x, y } = initialRectPos;
+    x = (x - stageX) / scale.x;
+    y = (y - stageY) / scale.y;
+
+    let { dx, dy } = { dx: pos.x, dy: pos.y };
+    dx = (dx - stageX) / scale.x;
+    dy = (dy - stageY) / scale.y;
+
+    const p = { x: 164, y: 164 };
+    console.log(pos);
+
+    // calculate area of rectangle A = l*b
+    const rectLength = distanceBetweenPoints(x, y, dx, y);
+    const rectWidth = distanceBetweenPoints(x, y, x, dy);
+    const rectArea = rectLength * rectWidth;
+
+    console.log("React area - ", rectArea);
+
+    // calculate area of 4 triangle wrt point and rectangle
+    // let P point and ABCD corners of rectangle
+
+    // Area of APB triangle
+    const Ap = distanceBetweenPoints(x, y, p.x, p.y);
+    const Pb = distanceBetweenPoints(p.x, p.y, dx, y);
+    const Ba = distanceBetweenPoints(x, y, dx, y);
+    const APBTriangleArea = findAreaOfTriangle(Ap, Pb, Ba);
+
+    // Area of BPC triangle
+    const Bp = distanceBetweenPoints(dx, y, p.x, p.y);
+    const Pc = distanceBetweenPoints(p.x, p.y, dx, dy);
+    const Bc = distanceBetweenPoints(dx, y, dx, dy);
+    const BPCTriangleArea = findAreaOfTriangle(Bp, Pc, Bc);
+
+    // Area of CPD triangle
+    const Cp = distanceBetweenPoints(dx, dy, p.x, p.y);
+    const Pd = distanceBetweenPoints(p.x, p.y, x, dy);
+    const Dc = distanceBetweenPoints(x, dy, dx, dy);
+    const CPDTriangleArea = findAreaOfTriangle(Cp, Pd, Dc);
+
+    // Area of DPA triangle
+    const Dp = distanceBetweenPoints(x, dy, p.x, p.y);
+    const Pa = distanceBetweenPoints(p.x, p.y, x, y);
+    const Ad = distanceBetweenPoints(x, y, x, dy);
+    const DPATriangleArea = findAreaOfTriangle(Dp, Pa, Ad);
+
+    const triangleAreaSum =
+      APBTriangleArea + BPCTriangleArea + CPDTriangleArea + DPATriangleArea;
+
+    console.log("Triangle area sum - ", triangleAreaSum);
+
     initialRectPos = null;
   };
 
