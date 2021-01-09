@@ -20,6 +20,7 @@ const WaferMap = (props) => {
   let initialRectPos = null;
   let chipMatrix;
   let rectGraphics = new PIXI.Graphics();
+  let chipGraphics = new PIXI.Graphics();
 
   const chipWidth = 0.5;
   const chipHeight = 0.5;
@@ -32,9 +33,6 @@ const WaferMap = (props) => {
   };
 
   const drawChipMap = (scale) => {
-    const chipGraphics = new PIXI.Graphics();
-    chipGraphics.interactive = true;
-
     if (data) {
       // find max x and y indexe
       const xIndexData = sort(data.map((i) => i.xIndex));
@@ -59,11 +57,7 @@ const WaferMap = (props) => {
             if (chip) {
               const x = chip.xIndex * chipWidth + chip.xIndex * chipGap;
               const y = chip.yIndex * chipHeight + chip.yIndex * chipGap;
-              if (chip.xIndex === 200 && chip.yIndex === 200) {
-                chipGraphics.beginFill(0x000000);
-              } else {
-                chipGraphics.beginFill(chip.color);
-              }
+              chipGraphics.beginFill(chip.color);
               chipGraphics.drawRect(x, y, chipWidth, chipHeight);
               chipGraphics.endFill();
             }
@@ -126,72 +120,29 @@ const WaferMap = (props) => {
     };
   };
 
-  const distanceBetweenPoints = (x1, y1, x2, y2) => {
-    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-  };
-
-  const findAreaOfTriangle = (a, b, c) => {
-    // Heron's formula
-    const s = (a + b + c) / 2;
-    const area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
-    return area;
-  };
-
   const onRendererMouseUp = (e) => {
-    const stageX = app.stage.x;
-    const stageY = app.stage.y;
-    const pos = e.data.global;
+    const finalPoint = e.data.global;
+    const stageBounds = app.stage.getBounds();
 
     let { x, y } = initialRectPos;
-    x = (x - stageX) / scale.x;
-    y = (y - stageY) / scale.y;
+    x = (x - stageBounds.x) / scale.x;
+    y = (y - stageBounds.y) / scale.y;
 
-    let { dx, dy } = { dx: pos.x, dy: pos.y };
-    dx = (dx - stageX) / scale.x;
-    dy = (dy - stageY) / scale.y;
+    let { dx, dy } = { dx: finalPoint.x, dy: finalPoint.y };
+    dx = (dx - stageBounds.x) / scale.x;
+    dy = (dy - stageBounds.y) / scale.y;
 
-    const p = { x: 164, y: 164 };
-    console.log(pos);
+    const graphicsData = chipGraphics.geometry.graphicsData;
+    graphicsData.forEach((chip, index) => {
+      const shape = chip.shape;
+      if (shape.x > x && shape.y > y && shape.x < dx && shape.y < dy) {
+        if (!data[index].isGood) {
+          chip.fillStyle.color = "0x000000";
+        }
+      }
+    });
 
-    // calculate area of rectangle A = l*b
-    const rectLength = distanceBetweenPoints(x, y, dx, y);
-    const rectWidth = distanceBetweenPoints(x, y, x, dy);
-    const rectArea = rectLength * rectWidth;
-
-    console.log("React area - ", rectArea);
-
-    // calculate area of 4 triangle wrt point and rectangle
-    // let P point and ABCD corners of rectangle
-
-    // Area of APB triangle
-    const Ap = distanceBetweenPoints(x, y, p.x, p.y);
-    const Pb = distanceBetweenPoints(p.x, p.y, dx, y);
-    const Ba = distanceBetweenPoints(x, y, dx, y);
-    const APBTriangleArea = findAreaOfTriangle(Ap, Pb, Ba);
-
-    // Area of BPC triangle
-    const Bp = distanceBetweenPoints(dx, y, p.x, p.y);
-    const Pc = distanceBetweenPoints(p.x, p.y, dx, dy);
-    const Bc = distanceBetweenPoints(dx, y, dx, dy);
-    const BPCTriangleArea = findAreaOfTriangle(Bp, Pc, Bc);
-
-    // Area of CPD triangle
-    const Cp = distanceBetweenPoints(dx, dy, p.x, p.y);
-    const Pd = distanceBetweenPoints(p.x, p.y, x, dy);
-    const Dc = distanceBetweenPoints(x, dy, dx, dy);
-    const CPDTriangleArea = findAreaOfTriangle(Cp, Pd, Dc);
-
-    // Area of DPA triangle
-    const Dp = distanceBetweenPoints(x, dy, p.x, p.y);
-    const Pa = distanceBetweenPoints(p.x, p.y, x, y);
-    const Ad = distanceBetweenPoints(x, y, x, dy);
-    const DPATriangleArea = findAreaOfTriangle(Dp, Pa, Ad);
-
-    const triangleAreaSum =
-      APBTriangleArea + BPCTriangleArea + CPDTriangleArea + DPATriangleArea;
-
-    console.log("Triangle area sum - ", triangleAreaSum);
-
+    chipGraphics.geometry.invalidate();
     initialRectPos = null;
   };
 
@@ -221,27 +172,6 @@ const WaferMap = (props) => {
   };
 
   // const onMouseDown = (e) => {
-  //   initialRectPos = {
-  //     x: e.nativeEvent.offsetX,
-  //     y: e.nativeEvent.offsetY,
-  //   };
-  //   console.log("Client XY", e.nativeEvent.clientX, e.nativeEvent.clientY);
-  //   console.log("Offset XY", e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-  // };
-
-  // const onMouseUp = (e) => {
-  //   initialRectPos = null;
-  // };
-
-  // const onMouseMove = (e) => {
-  //   if (initialRectPos) {
-  //     const { x, y } = initialRectPos;
-  //     const pos = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
-  //     drawRect(x, y, pos.x - x, pos.y - y);
-  //   }
-  // };
-
-  // const onMouseDown = (e) => {
   //   currentStagePos = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
   // };
 
@@ -262,7 +192,6 @@ const WaferMap = (props) => {
     // check if max and min scale limit has reached
     const isWithInMaxRange = scale.x + scale.y / 2 <= MAX_SCALE_LIMIT;
     const isWithInMinRange = scale.x + scale.y / 2 >= MIN_SCALE_LIMIT;
-
     return isWithInMaxRange && isWithInMinRange;
   };
 
@@ -325,7 +254,7 @@ const WaferMap = (props) => {
         onMouseMove={onMouseMove}*/
       >
         <span className={classes.waferNotes}>
-          Total chip count: {formatNumber(data.length)}
+          Total die count: {formatNumber(data.length)}
         </span>
       </div>
     </div>
